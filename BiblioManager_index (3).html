@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#7F77DD"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="BiblioManager"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+<title>BiblioManager — Libre Outils</title>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F7F6FF;--bg2:#EEEDFE;--bg3:#FFFFFF;
+  --vert:#7F77DD;--vert-h:#534AB7;--vert-l:#AFA9EC;
+  --orange:#D85A30;--cyan:#0891B2;
+  --border:#AFA9EC;--txt:#1A1A2E;--txt2:#3C3489;--txt3:#7F77DD;
+  --radius:10px;--radius-lg:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Georgia',serif;background:var(--bg);color:var(--txt);font-size:15px;line-height:1.6;}
+header{background:var(--vert);color:#fff;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;gap:8px;}
+.brand{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.brand span{font-size:11px;font-weight:400;opacity:.8;display:block;}
+.stats-bar{display:flex;gap:14px;}
+.hstat{text-align:center;font-size:11px;opacity:.9;}
+.hstat strong{display:block;font-size:17px;font-weight:700;line-height:1;}
+.header-btns{display:flex;gap:6px;flex-shrink:0;}
+.hbtn{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;font-family:inherit;}
+.hbtn:hover{background:rgba(255,255,255,0.32);}
+/* NAV DESKTOP */
+.hamburger{display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:6px 8px;cursor:pointer;flex-direction:column;gap:4px;flex-shrink:0;}
+.hamburger span{display:block;width:18px;height:2px;background:#fff;border-radius:2px;transition:all .3s;}
+.hamburger.open span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;}
+.hamburger.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+nav{background:var(--bg3);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;}
+nav::-webkit-scrollbar{display:none;}
+nav button{flex-shrink:0;background:none;border:none;padding:11px 14px;font-size:12px;font-family:inherit;color:var(--txt2);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
+nav button.active{color:var(--vert);border-bottom-color:var(--vert);font-weight:600;}
+nav button:hover:not(.active){background:var(--bg2);}
+/* NAV MOBILE */
+@media(max-width:600px){
+  .hamburger{display:flex;}
+  .stats-bar{display:none;}
+  .header-btns .hbtn span{display:none;}
+  .header-btns .hbtn{padding:6px 8px;}
+  nav{display:none;flex-direction:column;overflow:visible;border-bottom:none;position:fixed;top:56px;left:0;right:0;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.12);}
+  nav.open{display:flex;}
+  nav button{border-bottom:none;border-left:3px solid transparent;padding:13px 18px;font-size:14px;width:100%;}
+  nav button.active{border-left-color:var(--vert);border-bottom:none;background:var(--bg2);}
+  .section{padding:12px;}
+}
+.section{display:none;padding:14px;max-width:920px;margin:0 auto;}
+.section.active{display:block;}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px;}
+.card-title{font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:540px){.form-grid{grid-template-columns:1fr;}}
+.form-grid.col3{grid-template-columns:1fr 1fr 1fr;}
+@media(max-width:600px){.form-grid.col3{grid-template-columns:1fr 1fr;}}
+label{font-size:12px;color:var(--txt2);font-weight:600;display:block;margin-bottom:3px;}
+input,select,textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;background:var(--bg);color:var(--txt);transition:border .2s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--vert);background:#fff;}
+textarea{resize:vertical;min-height:64px;}
+input[readonly]{background:var(--bg2);color:var(--vert-h);font-family:'Courier New',monospace;font-size:12px;}
+.btn{padding:8px 16px;border-radius:var(--radius);border:none;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--vert);color:#fff;}
+.btn-primary:hover{background:var(--vert-h);}
+.btn-secondary{background:var(--bg2);color:var(--vert-h);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--border);}
+.btn-accent{background:var(--cyan);color:#fff;}
+.btn-accent:hover{opacity:.88;}
+.btn-danger{background:#FEE2E2;color:#991B1B;}
+.btn-danger:hover{background:#FECACA;}
+.btn-sm{padding:4px 9px;font-size:12px;}
+.btn-xs{padding:3px 7px;font-size:11px;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.inv-wrap{display:flex;gap:6px;}.inv-wrap input{flex:1;}
+.search-wrap{position:relative;margin-bottom:12px;}
+.search-wrap input{padding-left:34px;background:#fff;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--txt3);}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.bd{background:var(--bg2);color:#27500A;}
+.be{background:var(--vert);color:#fff;}
+.br{background:var(--orange);color:#fff;}
+.bc{background:#CFFAFE;color:#155E75;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:14px;}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;}
+.stat-card .num{font-size:26px;font-weight:700;color:var(--vert);line-height:1;}
+.stat-card .num.red{color:var(--orange);}
+.stat-card .lbl{font-size:11px;color:var(--txt2);margin-top:3px;}
+.livre-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;margin-bottom:7px;display:flex;align-items:flex-start;gap:10px;}
+.livre-spine{width:7px;min-height:48px;border-radius:3px;flex-shrink:0;}
+.livre-info{flex:1;min-width:0;}
+.livre-actions{display:flex;gap:5px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.ei{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;margin-bottom:7px;}
+.eh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.ui{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;}
+.ua{width:38px;height:38px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--vert-h);flex-shrink:0;}
+.ci{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:var(--radius);padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;}
+.tab-btns{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
+.tab-btn{padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--txt2);font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s;}
+.tab-btn.active{background:var(--vert);color:#fff;border-color:var(--vert);}
+.cfg-list{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
+.cfg-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--txt2);}
+.cfg-tag .rm{background:none;border:none;cursor:pointer;color:var(--txt3);font-size:14px;padding:0;line-height:1;}
+.cfg-tag .rm:hover{color:#991B1B;}
+.cfg-add{display:flex;gap:7px;margin-top:6px;}
+.cfg-add input{flex:1;}
+.plage-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;}
+.plage-bar{width:100%;background:var(--border);border-radius:4px;height:5px;margin:6px 0 4px;overflow:hidden;}
+.plage-fill{height:100%;background:var(--vert);border-radius:4px;}
+.inv-tag{font-family:'Courier New',monospace;font-size:11px;color:var(--vert-h);background:var(--bg2);padding:1px 6px;border-radius:4px;display:inline-block;}
+.fiche{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:13px;line-height:1.9;margin-top:10px;}
+.fiche h4{color:var(--vert);font-size:13px;font-weight:700;border-bottom:2px solid var(--vert-l);padding-bottom:4px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+.fr{display:flex;gap:8px;border-bottom:1px solid var(--bg2);padding:3px 0;}
+.fr .lb{font-weight:600;min-width:130px;color:var(--txt2);font-size:12px;}
+.empty{text-align:center;color:var(--txt3);padding:28px 16px;font-size:13px;}
+.empty svg{display:block;margin:0 auto 8px;opacity:.35;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg3);border-radius:var(--radius-lg);padding:18px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:15px;color:var(--vert-h);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt3);margin-top:-4px;}
+.alert-warn{background:#FEF3C7;border:1px solid #F59E0B;border-radius:var(--radius);padding:10px 13px;margin-bottom:8px;font-size:12px;color:#92400E;}
+.alert-warn strong{display:block;margin-bottom:2px;}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--vert);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:300;white-space:nowrap;}
+#toast.show{opacity:1;}
+@media print{header,nav,.btn-row,.btn,.tab-btns,.search-wrap,#toast,.header-btns{display:none!important;}.fiche{border:none;padding:0;}}
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+</svg>
+
+<header>
+  <div class="brand">
+    <svg width="20" height="20"><use href="#i-book"/></svg>
+    <div>BiblioManager<span>par Libre Outils — Gestion de bibliothèque</span></div>
+  </div>
+  <div class="stats-bar">
+    <div class="hstat"><strong id="h-l">0</strong>livres</div>
+    <div class="hstat"><strong id="h-e">0</strong>prêts</div>
+    <div class="hstat"><strong id="h-c">0</strong>consult.</div>
+    <div class="hstat"><strong id="h-r">0</strong>retards</div>
+  </div>
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="header-btns">
+    <button class="hbtn" onclick="sauvegarder()"><svg width="12" height="12"><use href="#i-save"/></svg>Sauvegarder</button>
+    <label class="hbtn" style="cursor:pointer;"><svg width="12" height="12"><use href="#i-sync"/></svg>Synchroniser<input type="file" id="sync-input" accept=".json" style="display:none" onchange="synchroniser(this)"/></label>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="go('accueil',this)"><svg width="13" height="13"><use href="#i-home"/></svg>Tableau de bord</button>
+  <button onclick="go('catalogue',this)"><svg width="13" height="13"><use href="#i-book"/></svg>Catalogue</button>
+  <button onclick="go('prets',this)"><svg width="13" height="13"><use href="#i-bookmark"/></svg>Prêts</button>
+  <button onclick="go('consultation',this)"><svg width="13" height="13"><use href="#i-eye"/></svg>Consultations</button>
+  <button onclick="go('utilisateurs',this)"><svg width="13" height="13"><use href="#i-user"/></svg>Lecteurs</button>
+  <button onclick="go('fiches',this)"><svg width="13" height="13"><use href="#i-print"/></svg>Fiches</button>
+  <button onclick="go('config',this)"><svg width="13" height="13"><use href="#i-settings"/></svg>Configuration</button>
+</nav>
+
+<!-- ACCUEIL -->
+<div id="accueil" class="section active">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="num" id="s-l">0</div><div class="lbl">Ouvrages</div></div>
+    <div class="stat-card"><div class="num" id="s-d">0</div><div class="lbl">Disponibles</div></div>
+    <div class="stat-card"><div class="num" id="s-e">0</div><div class="lbl">Prêts actifs</div></div>
+    <div class="stat-card"><div class="num" id="s-c">0</div><div class="lbl">Consult./mois</div></div>
+    <div class="stat-card"><div class="num red" id="s-r">0</div><div class="lbl">En retard</div></div>
+    <div class="stat-card"><div class="num" id="s-u">0</div><div class="lbl">Lecteurs</div></div>
+  </div>
+  <div class="card"><div class="card-title"><svg width="13" height="13"><use href="#i-warn"/></svg>Retards en cours</div><div id="ret-list"></div></div>
+  <div class="card"><div class="card-title"><svg width="13" height="13"><use href="#i-bookmark"/></svg>Derniers prêts</div><div id="der-list"></div></div>
+</div>
+
+<!-- CATALOGUE -->
+<div id="catalogue" class="section">
+  <div class="card" id="cat-form-card">
+    <div class="card-title" id="cat-form-title"><svg width="13" height="13"><use href="#i-plus"/></svg>Ajouter un ouvrage</div>
+    <div class="form-grid col3">
+      <div><label>N° inventaire</label><div class="inv-wrap"><input id="c-inv" placeholder="Auto-généré"/><button class="btn btn-secondary btn-sm" onclick="genInvManuel()" title="Générer"><svg width="13" height="13"><use href="#i-refresh"/></svg></button></div></div>
+      <div><label>Titre *</label><input id="c-titre" placeholder="Titre de l'ouvrage"/></div>
+      <div><label>Auteur *</label><input id="c-auteur" placeholder="Nom, Prénom"/></div>
+      <div><label>Éditeur</label><input id="c-editeur" placeholder="Maison d'édition"/></div>
+      <div><label>Année</label><input id="c-annee" type="number" placeholder="2024" min="1800" max="2100"/></div>
+      <div><label>Nombre de pages</label><input id="c-pages" type="number" placeholder="Ex: 256" min="1"/></div>
+      <div><label>ISBN</label><input id="c-isbn" placeholder="978-..."/></div>
+      <div><label>Type de document *</label><select id="c-type"></select></div>
+      <div><label>Thème *</label><select id="c-theme"></select></div>
+      <div><label>Langue</label><select id="c-langue"></select></div>
+      <div><label>Rayon</label><input id="c-rayon" placeholder="Ex: Rayon A"/></div>
+      <div><label>Étagère</label><input id="c-etagere" placeholder="Ex: Étagère 2"/></div>
+      <div><label>Cote</label><input id="c-cote" placeholder="Ex: 840 DES"/></div>
+    </div>
+    <div style="margin-top:10px"><label>Résumé / Mots-clés</label><textarea id="c-sujet" placeholder="Résumé court ou mots-clés…"></textarea></div>
+    <input type="hidden" id="c-edit-id"/>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveLivre()" id="btn-save-livre"><svg width="13" height="13"><use href="#i-save"/></svg>Enregistrer l'ouvrage</button>
+      <button class="btn btn-secondary" onclick="annulerEdit()">Effacer</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Catalogue <span id="cat-count" style="font-size:11px;font-weight:400;color:var(--txt3);margin-left:4px"></span></div>
+    <div class="search-wrap">
+      <svg class="search-icon"><use href="#i-search"/></svg>
+      <input id="cat-q" placeholder="Rechercher titre, auteur, cote, thème…" oninput="affCat()"/>
+    </div>
+    <div class="tab-btns" id="theme-filtres"></div>
+    <div id="cat-list"></div>
+  </div>
+</div>
+
+<!-- PRÊTS -->
+<div id="prets" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-plus"/></svg>Enregistrer un prêt</div>
+    <div class="form-grid">
+      <div><label>Lecteur *</label><select id="e-lect"><option value="">-- Choisir --</option></select></div>
+      <div><label>Ouvrage disponible *</label><select id="e-livre"><option value="">-- Choisir --</option></select></div>
+      <div><label>Date de prêt</label><input id="e-date" type="date"/></div>
+      <div><label>Date de retour prévue</label><input id="e-ret" type="date"/></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="enrEmp()"><svg width="13" height="13"><use href="#i-bookmark"/></svg>Enregistrer le prêt</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Suivi des prêts</div>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="filtEmp('actif',this)">En cours</button>
+      <button class="tab-btn" onclick="filtEmp('retard',this)">En retard</button>
+      <button class="tab-btn" onclick="filtEmp('rendu',this)">Rendus</button>
+    </div>
+    <div id="emp-list"></div>
+  </div>
+</div>
+
+<!-- CONSULTATIONS -->
+<div id="consultation" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-eye"/></svg>Enregistrer une consultation sur place</div>
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Consultation sans prêt — ouvrage consulté sur place et remis en rayon.</p>
+    <div class="form-grid">
+      <div><label>Ouvrage *</label><select id="cs-livre"><option value="">-- Choisir un ouvrage --</option></select></div>
+      <div><label>Lecteur (optionnel)</label><select id="cs-lect"><option value="">-- Anonyme --</option></select></div>
+      <div><label>Date</label><input id="cs-date" type="date"/></div>
+      <div><label>Durée (min)</label><input id="cs-duree" type="number" placeholder="Ex: 30" min="1"/></div>
+    </div>
+    <div style="margin-top:10px"><label>Observations</label><textarea id="cs-note" placeholder="Notes sur la consultation…"></textarea></div>
+    <div class="btn-row"><button class="btn btn-accent" onclick="enrConsult()"><svg width="13" height="13"><use href="#i-check"/></svg>Enregistrer la consultation</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Historique des consultations</div>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="filtConsult('tout',this)">Toutes</button>
+      <button class="tab-btn" onclick="filtConsult('mois',this)">Ce mois</button>
+    </div>
+    <div id="consult-list"></div>
+  </div>
+</div>
+
+<!-- LECTEURS -->
+<div id="utilisateurs" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-plus"/></svg>Ajouter un lecteur</div>
+    <div class="form-grid">
+      <div><label>Nom *</label><input id="u-nom" placeholder="Nom de famille"/></div>
+      <div><label>Prénom *</label><input id="u-prenom" placeholder="Prénom"/></div>
+      <div><label>Service / Fonction</label><input id="u-service" placeholder="Ex: Direction"/></div>
+      <div><label>Téléphone</label><input id="u-tel" placeholder="+225 XX XX XX XX XX"/></div>
+      <div><label>Email</label><input id="u-email" placeholder="email@exemple.ci"/></div>
+      <div><label>Date d'inscription</label><input id="u-date" type="date"/></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="ajUser()"><svg width="13" height="13"><use href="#i-plus"/></svg>Enregistrer le lecteur</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-user"/></svg>Liste des lecteurs</div>
+    <div class="search-wrap">
+      <svg class="search-icon"><use href="#i-search"/></svg>
+      <input id="user-q" placeholder="Rechercher un lecteur…" oninput="affUsers()"/>
+    </div>
+    <div id="user-list"></div>
+  </div>
+</div>
+
+<!-- FICHES -->
+<div id="fiches" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-print"/></svg>Générer les fiches</div>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="showFiche('fl',this)">Fiche lecteur</button>
+      <button class="tab-btn" onclick="showFiche('fr',this)">Reçu de prêt</button>
+      <button class="tab-btn" onclick="showFiche('fi',this)">Export inventaire</button>
+    </div>
+    <div id="fl">
+      <div class="form-grid"><div><label>Lecteur</label><select id="f-lect"><option value="">-- Choisir --</option></select></div></div>
+      <div id="pv-lect"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="pvLect()"><svg width="13" height="13"><use href="#i-eye"/></svg>Aperçu</button><button class="btn btn-secondary" onclick="window.print()"><svg width="13" height="13"><use href="#i-print"/></svg>Imprimer</button></div>
+    </div>
+    <div id="fr" style="display:none">
+      <div class="form-grid"><div><label>Prêt en cours</label><select id="f-emp"><option value="">-- Choisir --</option></select></div></div>
+      <div id="pv-recu"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="pvRecu()"><svg width="13" height="13"><use href="#i-eye"/></svg>Aperçu</button><button class="btn btn-secondary" onclick="window.print()"><svg width="13" height="13"><use href="#i-print"/></svg>Imprimer</button></div>
+    </div>
+    <div id="fi" style="display:none">
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Exporte tout le catalogue en Excel avec N° inventaire, thèmes, rayons, nombre de pages et statuts.</p>
+      <div class="btn-row"><button class="btn btn-primary" onclick="exportXls()"><svg width="13" height="13"><use href="#i-dl"/></svg>Télécharger l'inventaire (.xlsx)</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIGURATION -->
+<div id="config" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Plages de numéros d'inventaire</div>
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Définissez des plages par site pour éviter les doublons lors des synchronisations.</p>
+    <div id="plages-list"></div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Ajouter une plage</div>
+      <div class="form-grid">
+        <div><label>Nom du site</label><input id="plage-nom" placeholder="Ex: Bibliothèque principale"/></div>
+        <div><label>Préfixe</label><input id="plage-prefix" placeholder="Ex: INV-2026"/></div>
+        <div><label>Début (numéro)</label><input id="plage-debut" type="number" placeholder="Ex: 1" min="1"/></div>
+        <div><label>Fin (numéro)</label><input id="plage-fin" type="number" placeholder="Ex: 500" min="1"/></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="ajPlage()"><svg width="12" height="12"><use href="#i-plus"/></svg>Ajouter la plage</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Types de documents</div>
+    <div class="cfg-list" id="cfg-types"></div>
+    <div class="cfg-add"><input id="new-type" placeholder="Ex: Bande dessinée"/><button class="btn btn-primary btn-sm" onclick="ajCfg('types','new-type')">Ajouter</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Thèmes / Rayons</div>
+    <div class="cfg-list" id="cfg-themes"></div>
+    <div class="cfg-add"><input id="new-theme" placeholder="Ex: Géographie"/><button class="btn btn-primary btn-sm" onclick="ajCfg('themes','new-theme')">Ajouter</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-list"/></svg>Langues</div>
+    <div class="cfg-list" id="cfg-langues"></div>
+    <div class="cfg-add"><input id="new-langue" placeholder="Ex: Espagnol"/><button class="btn btn-primary btn-sm" onclick="ajCfg('langues','new-langue')">Ajouter</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-settings"/></svg>Paramètres généraux</div>
+    <div class="form-grid">
+      <div><label>Durée de prêt par défaut (jours)</label><input id="cfg-duree" type="number" min="1" max="90" onchange="saveCfg()"/></div>
+      <div><label>Nom de l'institution</label><input id="cfg-nom" onchange="saveCfg()"/></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span><svg width="13" height="13"><use href="#i-book"/></svg>Gestion du catalogue</span>
+      <span id="cfg-cat-count" style="font-size:11px;color:var(--txt3);font-weight:400"></span>
+    </div>
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Modifiez ou supprimez des ouvrages directement depuis cette section.</p>
+    <div class="search-wrap" style="margin-bottom:10px">
+      <svg width="14" height="14"><use href="#i-search"/></svg>
+      <input id="cfg-cat-search" placeholder="Rechercher dans le catalogue..." oninput="affCatCfg()"/>
+    </div>
+    <div id="cfg-cat-list" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto"></div>
+  </div>
+
+  <div class="card" style="border:1px solid #fecaca;background:#fff5f5">
+    <div class="card-title" style="color:#b91c1c"><svg width="13" height="13"><use href="#i-trash"/></svg>Zone de réinitialisation</div>
+    <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">⚠️ Ces actions sont irréversibles. Exportez vos données avant toute réinitialisation.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" onclick="resetCatalogue()">🗑 Vider le catalogue</button>
+      <button class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" onclick="resetLecteurs()">🗑 Vider les lecteurs</button>
+      <button class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" onclick="resetPrets()">🗑 Vider les prêts</button>
+      <button class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" onclick="resetTout()">⚠️ Tout réinitialiser</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION AIDE -->
+<div id="aide" class="section">
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-help"/></svg>📱 Installer sur téléphone Android</div>
+    <ol style="padding-left:18px;font-size:13px;line-height:2;color:var(--txt2)">
+      <li>Ouvrez l'application dans <strong>Google Chrome</strong></li>
+      <li>Appuyez sur le menu <strong>⋮</strong> (trois points en haut à droite)</li>
+      <li>Appuyez sur <strong>"Ajouter à l'écran d'accueil"</strong></li>
+      <li>Confirmez → l'icône BiblioManager apparaît sur votre écran ✅</li>
+    </ol>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-help"/></svg>🍎 Installer sur iPhone</div>
+    <ol style="padding-left:18px;font-size:13px;line-height:2;color:var(--txt2)">
+      <li>Ouvrez l'application dans <strong>Safari</strong></li>
+      <li>Appuyez sur l'icône <strong>Partager</strong> (carré avec flèche)</li>
+      <li>Appuyez sur <strong>"Sur l'écran d'accueil"</strong></li>
+      <li>Appuyez sur <strong>"Ajouter"</strong> → l'icône apparaît ✅</li>
+    </ol>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-help"/></svg>💻 Installer sur ordinateur</div>
+    <ol style="padding-left:18px;font-size:13px;line-height:2;color:var(--txt2)">
+      <li>Ouvrez dans <strong>Google Chrome</strong> ou <strong>Microsoft Edge</strong></li>
+      <li>Cliquez sur l'icône <strong>⊕</strong> dans la barre d'adresse</li>
+      <li>Cliquez sur <strong>"Installer"</strong> → l'app s'ouvre comme native ✅</li>
+    </ol>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg width="13" height="13"><use href="#i-save"/></svg>💾 Transférer mes données</div>
+    <ol style="padding-left:18px;font-size:13px;line-height:2;color:var(--txt2)">
+      <li>Sur l'appareil source → cliquez <strong>"Sauvegarder"</strong> en haut</li>
+      <li>Un fichier <code style="background:var(--bg2);padding:1px 5px;border-radius:4px">bibliomanager_backup.json</code> est téléchargé</li>
+      <li>Envoyez ce fichier sur le nouvel appareil (WhatsApp, email…)</li>
+      <li>Sur le nouvel appareil → cliquez <strong>"Synchroniser"</strong> et sélectionnez le fichier ✅</li>
+    </ol>
+  </div>
+  <div class="card" style="border:1px solid var(--vert);background:var(--bg2)">
+    <div class="card-title" style="color:var(--vert)"><svg width="13" height="13"><use href="#i-help"/></svg>📞 Support & Contact</div>
+    <p style="font-size:13px;color:var(--txt2);line-height:1.8">
+      Pour toute question ou assistance, contactez le support <strong>Libre Outils</strong> :<br>
+      📧 <a href="mailto:libreoutils@gmail.com" style="color:var(--vert);font-weight:700">libreoutils@gmail.com</a><br>
+      <span style="font-size:12px;color:var(--txt3)">Développé par <strong>Victorine Monné</strong> — Archiviste & Développeure, Côte d'Ivoire</span>
+    </p>
+  </div>
+</div>
+
+<!-- MODAL PRÊT RAPIDE -->
+<div id="modal-emp" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-emp')">×</button>
+    <h3><svg width="15" height="15"><use href="#i-bookmark"/></svg>Prêt rapide</h3>
+    <input type="hidden" id="ml-id"/>
+    <div style="margin-bottom:12px"><label>Lecteur</label><select id="ml-lect"><option value="">-- Choisir --</option></select></div>
+    <div style="margin-bottom:12px"><label>Date de retour</label><input type="date" id="ml-ret"/></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="confEmp()"><svg width="13" height="13"><use href="#i-check"/></svg>Confirmer</button><button class="btn btn-secondary" onclick="closeModal('modal-emp')">Annuler</button></div>
+  </div>
+</div>
+
+<!-- MODAL DOUBLONS -->
+<div id="modal-doublons" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-doublons')">×</button>
+    <h3><svg width="15" height="15"><use href="#i-warn"/></svg>Avertissement — Synchronisation</h3>
+    <div id="doublons-content"></div>
+    <div class="btn-row" style="margin-top:14px"><button class="btn btn-primary" onclick="closeModal('modal-doublons')">J'ai compris</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<footer style="text-align:center;padding:18px 16px;margin-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--txt3);">
+  Développé par <strong style="color:var(--txt2)">Victorine Monné</strong> · <a href="https://victorinemonne.com" style="color:var(--vert);text-decoration:none;">victorinemonne.com</a> · Libre Outils © 2026
+</footer>
+
+<!-- BANNIÈRE INSTALLATION PWA -->
+<div id="install-banner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:10000;max-width:320px;width:90%">
+  <div style="font-size:28px">📚</div>
+  <div style="flex:1;font-size:13px;color:#111;font-family:inherit">
+    <strong style="display:block">Installer BiblioManager</strong>
+    Accès rapide depuis l'écran d'accueil
+  </div>
+  <button id="btn-install-pwa" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap">Installer</button>
+  <button onclick="document.getElementById('install-banner').style.display='none';localStorage.setItem('biblio-install-dismissed','1')" style="background:none;border:none;color:#666;cursor:pointer;font-size:18px;padding:2px">✕</button>
+</div>
+
+<script>
+// ══ Fallback Fuse.js offline ══
+/* Fallback offline si CDN non disponible */
+(function(){
+  function installFallbackFuse(){
+    if(typeof Fuse!=='undefined')return;
+    window.Fuse=function(list,opts){
+      this._list=list||[];this._keys=(opts&&opts.keys)||[];
+      this.search=function(q){
+        if(!q)return[];var lq=q.toLowerCase(),res=[];
+        this._list.forEach(function(item,i){
+          var hit=false;
+          this._keys.forEach(function(k){
+            var val=(item[typeof k==='string'?k:k.name]||'').toString().toLowerCase();
+            if(val.indexOf(lq)>=0)hit=true;
+          }.bind(this));
+          if(hit)res.push({item:item,refIndex:i});
+        }.bind(this));
+        return res;
+      }.bind(this);
+    };
+  }
+  installFallbackFuse();
+  window.addEventListener('load',installFallbackFuse);
+})();
+
+// ══ Application BiblioManager ══
+const DB={livres:[],emprunts:[],users:[],consultations:[],cfg:{types:['Roman','Conte','Essai','Manuel','Revue'],themes:['Littérature','Histoire','Droit','Sciences','Art'],langues:['Français','Anglais','Arabe'],duree:15,nom:'Ma Bibliothèque',plages:[]}};
+let fuseL,fuseU,empFilt='actif',themeFilt='Tous',consultFilt='tout';
+const SPINES=['#7F77DD','#D85A30','#AFA9EC','#534AB7','#3C3489','#0891B2','#9F99E8'];
+
+function save(){localStorage.setItem('bibliomanager_v2',JSON.stringify(DB));majFuse();majH();if(document.getElementById('config')?.classList.contains('active'))affCatCfg();}
+function load(){
+  const d=localStorage.getItem('bibliomanager_v2');
+  if(d){const p=JSON.parse(d);DB.livres=p.livres||[];DB.emprunts=p.emprunts||[];DB.users=p.users||[];DB.consultations=p.consultations||[];if(p.cfg){Object.assign(DB.cfg,p.cfg);if(!DB.cfg.plages)DB.cfg.plages=[];}}
+  majFuse();
+}
+function majFuse(){
+  fuseL=new Fuse(DB.livres,{keys:['titre','auteur','cote','editeur','sujet','theme','type'],threshold:.4});
+  fuseU=new Fuse(DB.users,{keys:['nom','prenom','service'],threshold:.4});
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function today(){return new Date().toISOString().split('T')[0];}
+function inD(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function v(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+function toast(m,type='ok'){const el=document.getElementById('toast');el.textContent=m;el.style.background=type==='err'?'#C62828':type==='warn'?'#D97706':'var(--vert)';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function genInv(){
+  const plages=DB.cfg.plages||[];
+  if(plages.length>0){
+    const p=plages[0];const prefix=p.prefix||'INV';
+    const nums=DB.livres.filter(l=>l.inv&&l.inv.startsWith(prefix+'-')).map(l=>{const parts=l.inv.split('-');return parseInt(parts[parts.length-1])||0;});
+    const next=(nums.length?Math.max(...nums):p.debut-1)+1;
+    if(next<=p.fin)return prefix+'-'+String(next).padStart(3,'0');
+  }
+  return 'INV-'+new Date().getFullYear()+'-'+String(DB.livres.length+1).padStart(3,'0');
+}
+function genInvManuel(){document.getElementById('c-inv').value=genInv();}
+
+function toggleNav(){
+  var btn=document.getElementById('hamburger-btn');
+  var nav=document.querySelector('nav');
+  btn.classList.toggle('open');
+  nav.classList.toggle('open');
+}
+function closeNav(){
+  var btn=document.getElementById('hamburger-btn');
+  var nav=document.querySelector('nav');
+  btn.classList.remove('open');
+  nav.classList.remove('open');
+}
+function go(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');btn.classList.add('active');closeNav();
+  if(id==='catalogue'){fillSelsCat();if(!v('c-inv'))document.getElementById('c-inv').value=genInv();affCat();majThemeFilt();}
+  if(id==='prets'){fillSelsEmp();affEmp();}
+  if(id==='consultation'){fillSelsConsult();affConsult();}
+  if(id==='utilisateurs')affUsers();
+  if(id==='accueil')affAccueil();
+  if(id==='fiches')fillSelsFiches();
+  if(id==='config')affCfg();
+}
+
+function majH(){
+  const a=DB.emprunts.filter(e=>e.statut==='actif'),r=a.filter(e=>new Date(e.dateRetour)<new Date());
+  const cm=DB.consultations.filter(c=>c.date&&c.date.startsWith(new Date().toISOString().slice(0,7))).length;
+  document.getElementById('h-l').textContent=DB.livres.length;
+  document.getElementById('h-e').textContent=a.length;
+  document.getElementById('h-c').textContent=cm;
+  document.getElementById('h-r').textContent=r.length;
+  document.getElementById('s-l').textContent=DB.livres.length;
+  document.getElementById('s-d').textContent=DB.livres.filter(l=>st(l.id)==='Disponible').length;
+  document.getElementById('s-e').textContent=a.length;
+  document.getElementById('s-c').textContent=cm;
+  document.getElementById('s-r').textContent=r.length;
+  document.getElementById('s-u').textContent=DB.users.length;
+}
+function st(id){const e=DB.emprunts.find(e=>e.livreId===id&&e.statut==='actif');if(!e)return 'Disponible';return new Date(e.dateRetour)<new Date()?'Retard':'Prêté';}
+
+function fillSelsCat(){
+  document.getElementById('c-type').innerHTML=DB.cfg.types.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('c-theme').innerHTML=DB.cfg.themes.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('c-langue').innerHTML=DB.cfg.langues.map(l=>`<option>${l}</option>`).join('');
+}
+function saveLivre(){
+  const editId=v('c-edit-id'),t=v('c-titre'),a=v('c-auteur');
+  if(!t||!a){toast('Titre et auteur obligatoires','err');return;}
+  const inv=v('c-inv')||genInv();
+  if(DB.livres.find(l=>l.inv===inv&&l.id!==editId)){toast('Ce N° inventaire existe déjà','err');return;}
+  const d={inv,titre:t,auteur:a,editeur:v('c-editeur'),annee:v('c-annee'),pages:v('c-pages'),type:v('c-type'),theme:v('c-theme'),langue:v('c-langue'),rayon:v('c-rayon'),etagere:v('c-etagere'),cote:v('c-cote'),isbn:v('c-isbn'),sujet:v('c-sujet')};
+  if(editId){const idx=DB.livres.findIndex(l=>l.id===editId);if(idx>=0)DB.livres[idx]={...DB.livres[idx],...d,dateModif:today()};toast('Ouvrage modifié');}
+  else{DB.livres.push({id:uid(),...d,dateAjout:today()});toast('Ouvrage enregistré — '+inv);}
+  save();annulerEdit();affCat();majThemeFilt();
+}
+function annulerEdit(){
+  ['c-titre','c-auteur','c-editeur','c-annee','c-pages','c-cote','c-isbn','c-sujet','c-rayon','c-etagere','c-edit-id'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('c-inv').value=genInv();
+  document.getElementById('cat-form-title').innerHTML='<svg width="13" height="13"><use href="#i-plus"/></svg>Ajouter un ouvrage';
+  document.getElementById('btn-save-livre').innerHTML='<svg width="13" height="13"><use href="#i-save"/></svg>Enregistrer l\'ouvrage';
+}
+function editerLivre(id){
+  const l=DB.livres.find(x=>x.id===id);if(!l)return;
+  fillSelsCat();
+  document.getElementById('c-edit-id').value=id;
+  document.getElementById('c-inv').value=l.inv||'';
+  document.getElementById('c-titre').value=l.titre||'';
+  document.getElementById('c-auteur').value=l.auteur||'';
+  document.getElementById('c-editeur').value=l.editeur||'';
+  document.getElementById('c-annee').value=l.annee||'';
+  document.getElementById('c-pages').value=l.pages||'';
+  document.getElementById('c-isbn').value=l.isbn||'';
+  document.getElementById('c-rayon').value=l.rayon||'';
+  document.getElementById('c-etagere').value=l.etagere||'';
+  document.getElementById('c-cote').value=l.cote||'';
+  document.getElementById('c-sujet').value=l.sujet||'';
+  if(l.type)document.getElementById('c-type').value=l.type;
+  if(l.theme)document.getElementById('c-theme').value=l.theme;
+  if(l.langue)document.getElementById('c-langue').value=l.langue;
+  document.getElementById('cat-form-title').innerHTML='<svg width="13" height="13"><use href="#i-edit"/></svg>Modifier l\'ouvrage';
+  document.getElementById('btn-save-livre').innerHTML='<svg width="13" height="13"><use href="#i-check"/></svg>Enregistrer les modifications';
+  document.getElementById('cat-form-card').scrollIntoView({behavior:'smooth'});
+}
+function majThemeFilt(){
+  const ts=['Tous',...DB.cfg.themes];
+  document.getElementById('theme-filtres').innerHTML=ts.map((t,i)=>`<button class="tab-btn${i===0?' active':''}" onclick="filtTheme('${t}',this)">${t}</button>`).join('');
+  themeFilt='Tous';
+}
+function filtTheme(t,btn){themeFilt=t;document.querySelectorAll('#theme-filtres .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');affCat();}
+function affCat(){
+  const q=document.getElementById('cat-q').value.trim();
+  let ls=q?fuseL.search(q).map(r=>r.item):[...DB.livres];
+  if(themeFilt!=='Tous')ls=ls.filter(l=>l.theme===themeFilt);
+  const el=document.getElementById('cat-list'),ce=document.getElementById('cat-count');
+  if(ce)ce.textContent='('+ls.length+' ouvrage'+(ls.length>1?'s':'')+')';;
+  if(!ls.length){el.innerHTML='<div class="empty"><svg width="30" height="30"><use href="#i-book"/></svg>Aucun ouvrage trouvé</div>';return;}
+  el.innerHTML=ls.map((l,i)=>{
+    const s=st(l.id),bc=s==='Disponible'?'bd':s==='Retard'?'br':'be';
+    return `<div class="livre-item">
+      <div class="livre-spine" style="background:${SPINES[i%SPINES.length]}"></div>
+      <div class="livre-info">
+        <div style="font-weight:600;font-size:14px">${l.titre} <span class="inv-tag">${l.inv}</span></div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px">${l.auteur}${l.editeur?' · '+l.editeur:''}${l.annee?' · '+l.annee:''}${l.pages?' · <strong>'+l.pages+' p.</strong>':''}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:3px">${l.type} · ${l.theme}${l.rayon?' · '+l.rayon:''}${l.etagere?' / '+l.etagere:''}${l.cote?' · Cote: '+l.cote:''}</div>
+      </div>
+      <div class="livre-actions">
+        <span class="badge ${bc}">${s}</span>
+        ${s==='Disponible'?`<button class="btn btn-sm btn-primary" onclick="openModal('${l.id}')" title="Prêt rapide"><svg width="12" height="12"><use href="#i-bookmark"/></svg></button>`:''}
+        <button class="btn btn-sm btn-secondary" onclick="editerLivre('${l.id}')" title="Modifier"><svg width="12" height="12"><use href="#i-edit"/></svg></button>
+        <button class="btn btn-sm btn-danger" onclick="delLivre('${l.id}')" title="Supprimer"><svg width="12" height="12"><use href="#i-trash"/></svg></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function delLivre(id){if(!confirm('Supprimer cet ouvrage ?'))return;DB.livres=DB.livres.filter(l=>l.id!==id);save();affCat();toast('Supprimé');}
+
+function fillSelsEmp(){
+  document.getElementById('e-lect').innerHTML='<option value="">-- Lecteur --</option>'+DB.users.map(u=>`<option value="${u.id}">${u.nom} ${u.prenom}</option>`).join('');
+  document.getElementById('e-livre').innerHTML='<option value="">-- Ouvrage disponible --</option>'+DB.livres.filter(l=>st(l.id)==='Disponible').map(l=>`<option value="${l.id}">${l.titre} · ${l.inv}</option>`).join('');
+  document.getElementById('e-date').value=today();
+  document.getElementById('e-ret').value=inD(DB.cfg.duree);
+}
+function enrEmp(){
+  const lid=v('e-lect'),bid=v('e-livre'),dd=v('e-date'),dr=v('e-ret');
+  if(!lid||!bid){toast('Lecteur et ouvrage obligatoires','err');return;}
+  const u=DB.users.find(x=>x.id===lid),l=DB.livres.find(x=>x.id===bid);
+  DB.emprunts.push({id:uid(),livreId:bid,userId:lid,livreNom:l.titre,livreInv:l.inv,livreTheme:l.theme,userNom:u.nom+' '+u.prenom,dateEmprunt:dd,dateRetour:dr,statut:'actif'});
+  save();affEmp();fillSelsEmp();toast('Prêt enregistré');
+}
+function affEmp(){
+  let ls=DB.emprunts;
+  if(empFilt==='actif')ls=ls.filter(e=>e.statut==='actif'&&new Date(e.dateRetour)>=new Date());
+  if(empFilt==='retard')ls=ls.filter(e=>e.statut==='actif'&&new Date(e.dateRetour)<new Date());
+  if(empFilt==='rendu')ls=ls.filter(e=>e.statut==='rendu');
+  const el=document.getElementById('emp-list');
+  if(!ls.length){el.innerHTML='<div class="empty"><svg width="30" height="30"><use href="#i-bookmark"/></svg>Aucun prêt</div>';return;}
+  el.innerHTML=ls.map(e=>{
+    const ret=e.statut==='actif'&&new Date(e.dateRetour)<new Date();
+    return `<div class="ei"><div class="eh">
+      <div>
+        <div style="font-weight:600;font-size:14px">${e.livreNom} <span class="inv-tag">${e.livreInv}</span></div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:3px">Lecteur : ${e.userNom}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">Prêté le ${e.dateEmprunt} · Retour prévu ${e.dateRetour}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+        ${ret?'<span class="badge br">En retard</span>':e.statut==='actif'?'<span class="badge be">En cours</span>':'<span class="badge bd">Rendu</span>'}
+        ${e.statut==='actif'?`<button class="btn btn-sm btn-secondary" onclick="rendEmp('${e.id}')"><svg width="12" height="12"><use href="#i-check"/></svg> Rendu</button>`:''}
+      </div>
+    </div></div>`;
+  }).join('');
+}
+function filtEmp(f,btn){empFilt=f;document.querySelectorAll('#prets .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');affEmp();}
+function rendEmp(id){const e=DB.emprunts.find(x=>x.id===id);if(e){e.statut='rendu';e.dateRendu=today();}save();affEmp();toast('Retour enregistré');}
+function openModal(lid){
+  document.getElementById('ml-id').value=lid;
+  document.getElementById('ml-ret').value=inD(DB.cfg.duree);
+  document.getElementById('ml-lect').innerHTML='<option value="">-- Choisir --</option>'+DB.users.map(u=>`<option value="${u.id}">${u.nom} ${u.prenom}</option>`).join('');
+  document.getElementById('modal-emp').classList.add('open');
+}
+function confEmp(){
+  const bid=document.getElementById('ml-id').value,lid=v('ml-lect'),dr=v('ml-ret');
+  if(!lid){toast('Choisir un lecteur','err');return;}
+  const u=DB.users.find(x=>x.id===lid),l=DB.livres.find(x=>x.id===bid);
+  DB.emprunts.push({id:uid(),livreId:bid,userId:lid,livreNom:l.titre,livreInv:l.inv,livreTheme:l.theme,userNom:u.nom+' '+u.prenom,dateEmprunt:today(),dateRetour:dr||inD(DB.cfg.duree),statut:'actif'});
+  save();closeModal('modal-emp');affCat();toast('Prêt enregistré');
+}
+
+function fillSelsConsult(){
+  document.getElementById('cs-livre').innerHTML='<option value="">-- Choisir un ouvrage --</option>'+DB.livres.map(l=>`<option value="${l.id}">${l.titre} · ${l.inv}</option>`).join('');
+  document.getElementById('cs-lect').innerHTML='<option value="">-- Anonyme --</option>'+DB.users.map(u=>`<option value="${u.id}">${u.nom} ${u.prenom}</option>`).join('');
+  document.getElementById('cs-date').value=today();
+}
+function enrConsult(){
+  const bid=v('cs-livre');if(!bid){toast('Choisir un ouvrage','err');return;}
+  const l=DB.livres.find(x=>x.id===bid),uid_l=v('cs-lect'),u=uid_l?DB.users.find(x=>x.id===uid_l):null;
+  DB.consultations.push({id:uid(),livreId:bid,livreNom:l.titre,livreInv:l.inv,userId:uid_l||null,userNom:u?u.nom+' '+u.prenom:'Anonyme',date:v('cs-date')||today(),duree:v('cs-duree')||null,note:v('cs-note')||''});
+  save();['cs-duree','cs-note'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('cs-livre').value='';document.getElementById('cs-lect').value='';
+  affConsult();toast('Consultation enregistrée');
+}
+function filtConsult(f,btn){consultFilt=f;document.querySelectorAll('#consultation .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');affConsult();}
+function affConsult(){
+  let ls=[...DB.consultations].reverse();
+  if(consultFilt==='mois'){const m=new Date().toISOString().slice(0,7);ls=ls.filter(c=>c.date&&c.date.startsWith(m));}
+  const el=document.getElementById('consult-list');
+  if(!ls.length){el.innerHTML='<div class="empty"><svg width="30" height="30"><use href="#i-eye"/></svg>Aucune consultation</div>';return;}
+  el.innerHTML=ls.map(c=>`<div class="ci">
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:14px">${c.livreNom} <span class="inv-tag">${c.livreInv}</span></div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:2px">${c.userNom}${c.duree?' · '+c.duree+' min':''} · ${c.date}</div>
+      ${c.note?`<div style="font-size:11px;color:var(--txt3);margin-top:3px;font-style:italic">${c.note}</div>`:''}
+    </div>
+    <span class="badge bc">Consultation</span>
+    <button class="btn btn-sm btn-danger" onclick="delConsult('${c.id}')"><svg width="11" height="11"><use href="#i-trash"/></svg></button>
+  </div>`).join('');
+}
+function delConsult(id){DB.consultations=DB.consultations.filter(c=>c.id!==id);save();affConsult();}
+
+function ajUser(){
+  const n=v('u-nom'),p=v('u-prenom');if(!n||!p){toast('Nom et prénom obligatoires','err');return;}
+  DB.users.push({id:uid(),nom:n,prenom:p,service:v('u-service'),tel:v('u-tel'),email:v('u-email'),dateInscription:v('u-date')||today()});
+  save();['u-nom','u-prenom','u-service','u-tel','u-email'].forEach(i=>document.getElementById(i).value='');affUsers();toast('Lecteur ajouté');
+}
+function affUsers(){
+  const q=document.getElementById('user-q').value.trim();
+  let us=q?fuseU.search(q).map(r=>r.item):[...DB.users];
+  const el=document.getElementById('user-list');
+  if(!us.length){el.innerHTML='<div class="empty"><svg width="30" height="30"><use href="#i-user"/></svg>Aucun lecteur</div>';return;}
+  el.innerHTML=us.map(u=>{
+    const ini=(u.nom[0]+(u.prenom[0]||'')).toUpperCase();
+    const e=DB.emprunts.filter(x=>x.userId===u.id&&x.statut==='actif').length;
+    return `<div class="ui"><div class="ua">${ini}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${u.nom} ${u.prenom}</div>
+        <div style="font-size:12px;color:var(--txt2)">${u.service||'—'}${u.tel?' · '+u.tel:''}</div>
+        ${e?`<span class="badge be" style="margin-top:4px">${e} prêt${e>1?'s':''} en cours</span>`:''}
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="delUser('${u.id}')"><svg width="12" height="12"><use href="#i-trash"/></svg></button>
+    </div>`;
+  }).join('');
+}
+function delUser(id){if(!confirm('Supprimer ce lecteur ?'))return;DB.users=DB.users.filter(u=>u.id!==id);save();affUsers();toast('Supprimé');}
+
+// ══════════ GESTION CATALOGUE DEPUIS CONFIG ══════════
+function affCatCfg(){
+  const q=(document.getElementById('cfg-cat-search')?.value||'').toLowerCase();
+  const list=DB.livres.filter(l=>(l.titre+' '+(l.auteur||'')+' '+(l.inv||'')).toLowerCase().includes(q));
+  const el=document.getElementById('cfg-cat-list');
+  if(!el)return;
+  document.getElementById('cfg-cat-count').textContent=DB.livres.length+' ouvrage(s)';
+  if(!list.length){el.innerHTML='<p style="text-align:center;color:var(--txt3);padding:20px;font-size:13px">Aucun ouvrage trouvé</p>';return;}
+  el.innerHTML=list.map(l=>{
+    const statut=st(l.id);
+    const sc=statut==='Disponible'?'var(--vert)':statut==='Retard'?'#ef4444':'#f59e0b';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;color:var(--txt1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.titre}</div>
+        <div style="font-size:11px;color:var(--txt3)">${l.auteur||'—'} · ${l.inv||'—'} · <span style="color:${sc}">${statut}</span></div>
+      </div>
+      <button class="btn btn-sm" style="background:var(--bg3);color:var(--txt2);border:1px solid var(--border);flex-shrink:0" onclick="editFromCfg('${l.id}')">✏️</button>
+      <button class="btn btn-sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;flex-shrink:0" onclick="delLivreFromCfg('${l.id}')">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function editFromCfg(id){
+  // Aller dans catalogue et ouvrir l'édition
+  go('catalogue',null);
+  document.querySelectorAll('nav button').forEach(b=>{if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'catalogue'"))b.classList.add('active');});
+  setTimeout(()=>editerLivre(id),200);
+}
+
+function delLivreFromCfg(id){
+  const l=DB.livres.find(x=>x.id===id);
+  if(!l)return;
+  if(!confirm('Supprimer "'+l.titre+'" du catalogue ?'))return;
+  DB.livres=DB.livres.filter(x=>x.id!==id);
+  save();affCatCfg();affCat();toast('Ouvrage supprimé');
+}
+
+// ══════════ RÉINITIALISATIONS ══════════
+function resetCatalogue(){
+  if(!confirm('⚠️ Supprimer TOUS les livres du catalogue ? Cette action est irréversible.'))return;
+  DB.livres=[];DB.emprunts=[];save();affCat();affCatCfg();toast('Catalogue vidé','warn');
+}
+function resetLecteurs(){
+  if(!confirm('⚠️ Supprimer TOUS les lecteurs ?'))return;
+  DB.users=[];DB.emprunts=[];save();affUsers();toast('Lecteurs supprimés','warn');
+}
+function resetPrets(){
+  if(!confirm('⚠️ Supprimer TOUS les prêts et consultations ?'))return;
+  DB.emprunts=[];DB.consultations=[];save();affEmp();affConsult();toast('Prêts supprimés','warn');
+}
+function resetTout(){
+  if(!confirm('⚠️ TOUT réinitialiser ? Livres, lecteurs, prêts, consultations. Irréversible !'))return;
+  if(!confirm('Dernière confirmation : êtes-vous certain(e) ?'))return;
+  DB.livres=[];DB.emprunts=[];DB.users=[];DB.consultations=[];
+  save();affCat();affUsers();affEmp();affConsult();affCatCfg();majH();toast('Tout réinitialisé','warn');
+}
+
+let ficheActive='fl';
+function showFiche(f,btn){
+  ficheActive=f;
+  ['fl','fr','fi'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById(f).style.display='block';
+  document.querySelectorAll('#fiches .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  else document.querySelectorAll('#fiches .tab-btn').forEach(b=>{if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+f+"'"))b.classList.add('active');});
+}
+function fillSelsFiches(){
+  document.getElementById('f-lect').innerHTML='<option value="">-- Choisir --</option>'+DB.users.map(u=>`<option value="${u.id}">${u.nom} ${u.prenom}</option>`).join('');
+  document.getElementById('f-emp').innerHTML='<option value="">-- Choisir --</option>'+DB.emprunts.filter(e=>e.statut==='actif').map(e=>`<option value="${e.id}">${e.livreNom} — ${e.userNom}</option>`).join('');
+}
+function pvLect(){
+  const id=v('f-lect');if(!id){toast('Choisir un lecteur','err');return;}
+  const u=DB.users.find(x=>x.id===id),emps=DB.emprunts.filter(e=>e.userId===id&&e.statut==='actif');
+  document.getElementById('pv-lect').innerHTML=`<div class="fiche"><h4>${DB.cfg.nom} — Fiche Lecteur</h4>
+    <div class="fr"><span class="lb">Nom complet</span><span>${u.nom} ${u.prenom}</span></div>
+    <div class="fr"><span class="lb">Service</span><span>${u.service||'—'}</span></div>
+    <div class="fr"><span class="lb">Téléphone</span><span>${u.tel||'—'}</span></div>
+    <div class="fr"><span class="lb">Email</span><span>${u.email||'—'}</span></div>
+    <div class="fr"><span class="lb">Date d'inscription</span><span>${u.dateInscription||'—'}</span></div>
+    <div class="fr"><span class="lb">Prêts en cours</span><span>${emps.length}</span></div>
+    ${emps.map(e=>`<div class="fr"><span class="lb">${e.livreNom}</span><span>Retour : ${e.dateRetour}</span></div>`).join('')}
+    <div style="margin-top:10px;font-size:11px;color:var(--txt3)">Édité le ${today()}</div></div>`;
+}
+function pvRecu(){
+  const id=v('f-emp');if(!id){toast('Choisir un prêt','err');return;}
+  const e=DB.emprunts.find(x=>x.id===id),l=DB.livres.find(x=>x.id===e.livreId);
+  document.getElementById('pv-recu').innerHTML=`<div class="fiche"><h4>${DB.cfg.nom} — Reçu de prêt</h4>
+    <div class="fr"><span class="lb">N° inventaire</span><span>${e.livreInv||'—'}</span></div>
+    <div class="fr"><span class="lb">Ouvrage</span><span>${e.livreNom}</span></div>
+    ${l&&l.pages?`<div class="fr"><span class="lb">Nombre de pages</span><span>${l.pages}</span></div>`:''}
+    ${l?`<div class="fr"><span class="lb">Thème / Rayon</span><span>${l.theme||'—'}${l.rayon?' · '+l.rayon:''}</span></div>`:''}
+    <div class="fr"><span class="lb">Lecteur</span><span>${e.userNom}</span></div>
+    <div class="fr"><span class="lb">Date de prêt</span><span>${e.dateEmprunt}</span></div>
+    <div class="fr"><span class="lb">Retour prévu</span><span>${e.dateRetour}</span></div>
+    <div style="margin-top:14px;font-size:11px;color:var(--txt3)">Signature lecteur : _________________________ &nbsp;&nbsp; Édité le ${today()}</div></div>`;
+}
+function exportXls(){
+  if(!DB.livres.length){toast('Catalogue vide','err');return;}
+  const data=DB.livres.map(l=>({'N° Inventaire':l.inv||'','Titre':l.titre,'Auteur':l.auteur,'Éditeur':l.editeur||'','Année':l.annee||'','Pages':l.pages||'','Type':l.type,'Thème':l.theme,'Rayon':l.rayon||'','Étagère':l.etagere||'','Cote':l.cote||'','ISBN':l.isbn||'','Langue':l.langue,'Résumé':l.sujet||'','Statut':st(l.id),'Date ajout':l.dateAjout}));
+  try{if(typeof XLSX==='undefined')throw new Error();const ws=XLSX.utils.json_to_sheet(data);ws['!cols']=[{wch:14},{wch:34},{wch:24},{wch:18},{wch:6},{wch:8},{wch:12},{wch:14},{wch:10},{wch:10},{wch:10},{wch:14},{wch:10},{wch:28},{wch:12},{wch:12}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,'Inventaire',ws);XLSX.writeFile(wb,'Inventaire_'+today()+'.xlsx');toast('Export téléchargé');}
+  catch(e){const keys=Object.keys(data[0]);const rows=[keys.join(';'),...data.map(r=>keys.map(k=>(r[k]||'').toString().replace(/;/g,',')).join(';'))];const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Inventaire_'+today()+'.csv';a.click();URL.revokeObjectURL(a.href);toast('Export CSV téléchargé');}
+}
+
+function affCfg(){
+  ['types','themes','langues'].forEach(k=>{document.getElementById('cfg-'+k).innerHTML=DB.cfg[k].map((t,i)=>`<span class="cfg-tag">${t}<button class="rm" onclick="rmCfg('${k}',${i})">×</button></span>`).join('');});
+  document.getElementById('cfg-duree').value=DB.cfg.duree;
+  document.getElementById('cfg-nom').value=DB.cfg.nom;
+  affPlages();
+}
+function ajCfg(k,inputId){const val=document.getElementById(inputId).value.trim();if(!val){toast('Valeur vide','err');return;}if(DB.cfg[k].includes(val)){toast('Déjà dans la liste','err');return;}DB.cfg[k].push(val);document.getElementById(inputId).value='';save();affCfg();toast('Ajouté : '+val);}
+function rmCfg(k,i){DB.cfg[k].splice(i,1);save();affCfg();}
+function saveCfg(){DB.cfg.duree=parseInt(document.getElementById('cfg-duree').value)||15;DB.cfg.nom=document.getElementById('cfg-nom').value.trim()||'Bibliothèque';save();toast('Paramètres sauvegardés');}
+
+function ajPlage(){
+  const nom=document.getElementById('plage-nom').value.trim(),prefix=document.getElementById('plage-prefix').value.trim();
+  const debut=parseInt(document.getElementById('plage-debut').value)||1,fin=parseInt(document.getElementById('plage-fin').value)||100;
+  if(!nom||!prefix){toast('Nom et préfixe obligatoires','err');return;}
+  if(fin<=debut){toast('La fin doit être supérieure au début','err');return;}
+  if(!DB.cfg.plages)DB.cfg.plages=[];
+  DB.cfg.plages.push({id:uid(),nom,prefix,debut,fin});
+  ['plage-nom','plage-prefix','plage-debut','plage-fin'].forEach(i=>document.getElementById(i).value='');
+  save();affPlages();toast('Plage ajoutée');
+}
+function rmPlage(id){DB.cfg.plages=DB.cfg.plages.filter(p=>p.id!==id);save();affPlages();}
+function affPlages(){
+  const el=document.getElementById('plages-list');
+  if(!DB.cfg.plages||!DB.cfg.plages.length){el.innerHTML='<p style="font-size:12px;color:var(--txt3);font-style:italic;margin-bottom:8px">Aucune plage définie — numérotage automatique.</p>';return;}
+  el.innerHTML=DB.cfg.plages.map(p=>{
+    const util=DB.livres.filter(l=>l.inv&&l.inv.startsWith(p.prefix+'-')).length;
+    const total=p.fin-p.debut+1,pct=Math.min(100,Math.round(util/total*100));
+    return `<div class="plage-item">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><strong style="font-size:13px">${p.nom}</strong><span class="inv-tag" style="margin-left:8px">${p.prefix}-${String(p.debut).padStart(3,'0')} → ${p.prefix}-${String(p.fin).padStart(3,'0')}</span></div>
+        <button class="btn btn-danger btn-xs" onclick="rmPlage('${p.id}')"><svg width="11" height="11"><use href="#i-trash"/></svg></button>
+      </div>
+      <div class="plage-bar"><div class="plage-fill" style="width:${pct}%"></div></div>
+      <div style="font-size:11px;color:var(--txt3)">${util} / ${total} numéros utilisés (${pct}%)</div>
+    </div>`;
+  }).join('');
+}
+
+function sauvegarder(){
+  const nom=(DB.cfg.nom||'bibliotheque').replace(/\s+/g,'_');
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nom+'_sauvegarde_'+today()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Sauvegarde téléchargée');
+}
+function synchroniser(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);let nL=0,nU=0,nE=0,nC=0;const alertes=[];
+      (data.livres||[]).forEach(l=>{
+        if(!DB.livres.find(x=>x.id===l.id)){
+          const db=DB.livres.find(x=>x.inv===l.inv);
+          if(db)alertes.push({type:'inv',msg:`N° <strong>${l.inv}</strong> en doublon : "${l.titre}" et "${db.titre}"`});
+          if(DB.cfg.plages&&DB.cfg.plages.length){
+            const ok=DB.cfg.plages.some(p=>{if(!l.inv||!l.inv.startsWith(p.prefix+'-'))return false;const n=parseInt(l.inv.split('-').pop());return n>=p.debut&&n<=p.fin;});
+            if(!ok&&l.inv)alertes.push({type:'plage',msg:`"${l.titre}" (${l.inv}) hors des plages définies`});
+          }
+          DB.livres.push(l);nL++;
+        }
+      });
+      (data.users||[]).forEach(u=>{if(!DB.users.find(x=>x.id===u.id)){DB.users.push(u);nU++;}});
+      (data.emprunts||[]).forEach(em=>{if(!DB.emprunts.find(x=>x.id===em.id)){DB.emprunts.push(em);nE++;}});
+      (data.consultations||[]).forEach(c=>{if(!DB.consultations.find(x=>x.id===c.id)){DB.consultations.push(c);nC++;}});
+      save();affAccueil();
+      toast(`Synchronisé : +${nL} livres, +${nU} lecteurs, +${nE} prêts`);
+      if(alertes.length){
+        document.getElementById('doublons-content').innerHTML=`<p style="font-size:13px;margin-bottom:12px"><strong>${alertes.length} problème${alertes.length>1?'s':''}</strong> détecté${alertes.length>1?'s':''} :</p>`+alertes.map(a=>`<div class="alert-warn"><strong>${a.type==='inv'?'Doublon de N° inventaire':'Hors plage assignée'}</strong>${a.msg}</div>`).join('')+`<p style="font-size:12px;color:var(--txt3);margin-top:10px">Vérifiez les plages dans Configuration.</p>`;
+        setTimeout(()=>document.getElementById('modal-doublons').classList.add('open'),600);
+      }
+    }catch(err){toast('Fichier invalide','err');}
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+function affAccueil(){
+  majH();
+  const rets=DB.emprunts.filter(e=>e.statut==='actif'&&new Date(e.dateRetour)<new Date());
+  document.getElementById('ret-list').innerHTML=rets.length?rets.map(e=>`<div class="ei"><div class="eh"><div><div style="font-weight:600;font-size:14px">${e.livreNom}</div><div style="font-size:12px;color:var(--txt2)">${e.userNom} · Dû le ${e.dateRetour}</div></div><span class="badge br">En retard</span></div></div>`).join(''):'<div class="empty"><svg width="28" height="28"><use href="#i-check"/></svg>Aucun retard</div>';
+  const ders=DB.emprunts.filter(e=>e.statut==='actif').slice(-5).reverse();
+  document.getElementById('der-list').innerHTML=ders.length?ders.map(e=>`<div class="ei"><div class="eh"><div><div style="font-weight:600;font-size:14px">${e.livreNom}</div><div style="font-size:12px;color:var(--txt2)">${e.userNom} · Retour ${e.dateRetour}</div></div><span class="badge be">En cours</span></div></div>`).join(''):'<div class="empty">Aucun prêt récent</div>';
+}
+
+window.addEventListener('load', function(){
+  load();majH();affAccueil();
+  document.getElementById('u-date').value=today();
+});
+
+// ══════ PWA ══════
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if(!localStorage.getItem('biblio-install-dismissed')){
+    const b = document.getElementById('install-banner');
+    if(b) b.style.display = 'flex';
+  }
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn-install-pwa');
+  if(btn) btn.addEventListener('click', async () => {
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('install-banner').style.display = 'none';
+  });
+});
+window.addEventListener('appinstalled', () => {
+  const b = document.getElementById('install-banner');
+  if(b) b.style.display = 'none';
+});
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
