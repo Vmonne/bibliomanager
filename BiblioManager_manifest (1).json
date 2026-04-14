@@ -1,0 +1,18 @@
+{
+  "name": "BiblioManager — Gestion de bibliothèque",
+  "short_name": "BiblioManager",
+  "description": "Gestion de catalogue, prêts et lecteurs pour bibliothèques",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F7F6FF",
+  "theme_color": "#7F77DD",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
